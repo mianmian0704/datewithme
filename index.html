@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>约会邀请函</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #FFB3D9 0%, #FFD6EC 25%, #FFE4F0 50%, #FFC8E0 75%, #FFB3D9 100%);
+  background-size: 400% 400%;
+  animation: bgShift 12s ease-in-out infinite;
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  overflow: hidden;
+}
+@keyframes bgShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ---------- background floating icons ---------- */
+#bgIcons {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+  overflow: hidden;
+}
+.bg-float {
+  position: absolute; font-size: 32px;
+  pointer-events: none; opacity: 0.35;
+  animation: bgFloatUp var(--dur) var(--delay) linear infinite;
+  filter: blur(0.5px);
+}
+@keyframes bgFloatUp {
+  0%   { transform: translateY(105vh) translateX(0) rotate(0deg) scale(0.6); opacity: 0; }
+  10%  { opacity: 0.35; }
+  90%  { opacity: 0.35; }
+  100% { transform: translateY(-10vh) translateX(var(--drift)) rotate(var(--spin)) scale(1.1); opacity: 0; }
+}
+
+#viewport {
+  position: relative; z-index: 1;
+  transform-origin: center center;
+}
+
+/* ---------- card shell ---------- */
+.card {
+  display: none;
+  width: 1280px; height: 900px;
+  border: 6px solid #000;
+  border-radius: 32px;
+  overflow: hidden;
+  position: relative;
+  background: #FFF8F0;
+  flex-shrink: 0;
+  box-shadow: 10px 10px 0 #FF4FA3;
+}
+.card.active { display: flex; }
+
+/* ---------- wavy lace divider (SVG wave pattern) ---------- */
+.wave-divider {
+  width: 24px; height: 100%;
+  flex-shrink: 0;
+  position: relative;
+  background: #FFF8F0;
+  overflow: hidden;
+}
+.wave-divider::before {
+  content: '';
+  position: absolute; left: 6px; top: 0;
+  width: 12px; height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='48' viewBox='0 0 12 48'%3E%3Cpath d='M6,0 Q12,6 6,12 Q0,18 6,24 Q12,30 6,36 Q0,42 6,48' fill='none' stroke='%23FF4FA3' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: repeat-y;
+  background-size: 12px 48px;
+}
+.wave-divider::after {
+  content: '';
+  position: absolute; left: 0; top: 0;
+  width: 5px; height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='36' viewBox='0 0 5 36'%3E%3Cpath d='M2.5,0 Q5,4.5 2.5,9 Q0,13.5 2.5,18 Q5,22.5 2.5,27 Q0,31.5 2.5,36' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: repeat-y;
+  background-size: 5px 36px;
+}
+.wave-divider .wave-accent {
+  position: absolute; left: 13px; top: 0;
+  width: 3px; height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='3' height='30' viewBox='0 0 3 30'%3E%3Cpath d='M1.5,0 Q3,3.75 1.5,7.5 Q0,11.25 1.5,15 Q3,18.75 1.5,22.5 Q0,26.25 1.5,30' fill='none' stroke='%23FFE94F' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: repeat-y;
+  background-size: 3px 30px;
+}
+
+/* ---------- left panel (avatar) ---------- */
+.left-panel {
+  width: 366px; height: 100%;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #FFB3D9 0%, #B5F2C0 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 28px; padding: 50px 40px;
+  position: relative; overflow: visible;
+  z-index: 2;
+  border-right: none;
+}
+.avatar-wrap {
+  width: 200px; height: 200px;
+  border-radius: 16px;
+  border: 6px solid #000;
+  overflow: hidden;
+  background: #FFE4C4;
+  position: relative;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+  box-shadow: 6px 6px 0 #FF4FA3;
+}
+.avatar-wrap.shake {
+  animation: avatarShake 0.5s ease-in-out;
+}
+.avatar-wrap img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.avatar-name {
+  font-size: 36px; font-weight: 900;
+  color: #FF5C8A;
+  letter-spacing: 2px;
+  text-align: center;
+  text-shadow: 2px 2px 0 rgba(255,255,255,0.6);
+}
+
+/* ---------- avatar bubbles - transparent, no border, float irregularly from avatar ---------- */
+.avatar-bubble {
+  position: absolute;
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  font-size: 20px; font-weight: 800;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  color: #FF5C8A;
+  text-shadow: 0 2px 8px rgba(255,92,138,0.35), 0 0 12px rgba(255,182,217,0.5);
+  letter-spacing: 1px;
+}
+.avatar-bubble.show {
+  opacity: 1;
+}
+/* each bubble gets a unique float path via JS */
+
+/* ---------- right panel ---------- */
+.right-panel {
+  flex: 1; height: 100%;
+  display: flex; flex-direction: column;
+  align-items: flex-start; justify-content: flex-start;
+  padding: 80px 50px 40px 50px;
+  gap: 14px;
+  position: relative;
+  background: #FFF8F0;
+  z-index: 1;
+}
+.right-panel > * { flex-shrink: 0; }
+
+.right-panel.page1-panel {
+  padding-top: 160px;
+  gap: 10px;
+}
+
+.main-title {
+  font-size: 72px; font-weight: 900;
+  color: #000; text-align: left;
+  line-height: 1.1;
+}
+.main-title-mid {
+  font-size: 52px; font-weight: 900;
+  color: #000; text-align: left;
+  line-height: 1.2;
+}
+.subtitle {
+  font-size: 36px; font-weight: 700;
+  color: #000; text-align: left;
+}
+.desc {
+  font-size: 28px; color: #666;
+  text-align: left; font-weight: 400;
+}
+.emoji-big {
+  font-size: 80px; line-height: 1;
+}
+
+/* ---------- dashed lace bottom divider ---------- */
+.dashed-lace {
+  width: 100%; height: 6px;
+  flex-shrink: 0;
+  background: repeating-linear-gradient(
+    to right,
+    #000 0px, #000 8px,
+    transparent 8px, transparent 16px,
+    #FF4FA3 16px, #FF4FA3 20px,
+    transparent 20px, transparent 28px,
+    #FFE94F 28px, #FFE94F 32px,
+    transparent 32px, transparent 40px
+  );
+  border-radius: 3px;
+}
+
+/* ---------- buttons ---------- */
+.btn-row {
+  display: flex; gap: 24px;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+.btn {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px;
+  border: 5px solid #000;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 6px 6px 0 #000;
+  position: relative;
+  font-weight: 900;
+  user-select: none;
+  white-space: nowrap;
+}
+.btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 #000;
+}
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #000;
+}
+
+.btn-yellow { background: #FFE94F; color: #000; }
+.btn-white  { background: #FFF;    color: #000; }
+.btn-pink   { background: #FF4FA3; color: #FFF; }
+.btn-green  { background: #7ED957; color: #000; }
+
+.btn-primary   { padding: 24px 56px; font-size: 40px; }
+.btn-secondary { padding: 20px 40px; font-size: 30px; font-weight: 500; }
+.btn-full      { width: 100%; padding: 22px 32px; font-size: 34px; }
+
+.btn-open { background: #FF4FA3; color: #FFF; }
+
+.btn-confirm {
+  border-color: #000 !important;
+  box-shadow: 6px 6px 0 #000 !important;
+}
+.btn-confirm:hover {
+  box-shadow: 8px 8px 0 #000 !important;
+  border-color: #000 !important;
+}
+
+/* reject button - constrained flee within card */
+.reject-btn {
+  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+}
+
+/* ---------- dropdowns ---------- */
+.dropdown-group {
+  display: flex; gap: 16px;
+  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.dropdown {
+  display: flex; align-items: center; gap: 6px;
+  padding: 16px 22px;
+  background: #FFF;
+  border: 4px solid #000;
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 #FF4FA3;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 28px; font-weight: 700;
+  user-select: none;
+  position: relative;
+}
+.dropdown:hover {
+  box-shadow: 4px 4px 0 #FF4FA3;
+  transform: translate(-1px, -1px);
+}
+.dropdown-arrow { color: #FF4FA3; font-size: 22px; }
+.dropdown-options {
+  position: absolute; top: 100%; left: 0; right: 0;
+  margin-top: 8px;
+  background: #FFF;
+  border: 4px solid #000;
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 #FF4FA3;
+  display: none; flex-direction: column;
+  z-index: 20; max-height: 220px; overflow-y: auto;
+}
+.dropdown-options.show { display: flex; }
+.dropdown-option {
+  padding: 12px 16px;
+  font-size: 24px; font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 2px solid #eee;
+}
+.dropdown-option:last-child { border-bottom: none; }
+.dropdown-option:hover { background: #FFF0F5; }
+
+/* ---------- option grid ---------- */
+.option-grid {
+  display: flex; flex-direction: column;
+  gap: 12px; width: 100%;
+}
+.option-row {
+  display: flex; gap: 14px; width: 100%;
+}
+.opt-card {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 8px;
+  padding: 16px 12px;
+  border: 4px solid #000;
+  border-radius: 20px;
+  box-shadow: 4px 4px 0 #000;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  position: relative;
+}
+.opt-card:hover, .opt-card.selected {
+  border-color: #FF4FA3;
+  box-shadow: 4px 4px 0 #FF4FA3;
+  transform: translate(-2px, -2px);
+}
+.opt-card:active { transform: translate(1px, 1px); }
+
+.opt-icon  { font-size: 48px; line-height: 1; }
+.opt-label { font-size: 26px; font-weight: 700; color: #000; }
+
+/* card bg colors */
+.bg-pink  { background: #FFE3F0; }
+.bg-peach { background: #FFD9B3; }
+.bg-gold  { background: #FFE7A6; }
+.bg-mint  { background: #C8F0C0; }
+.bg-rose  { background: #FFD0D0; }
+.bg-blue  { background: #D0E7FF; }
+.bg-lime  { background: #D0F0E0; }
+.bg-lav   { background: #E0D0FF; }
+.bg-coral { background: #FFE0E0; }
+.bg-amber { background: #FFD7A6; }
+
+/* ---------- floating hearts (from option cards) ---------- */
+.float-heart {
+  position: absolute;
+  font-size: 26px;
+  pointer-events: none;
+  z-index: 5;
+  animation: heartFloatUp 1.2s ease-out forwards;
+}
+@keyframes heartFloatUp {
+  0%   { opacity: 1; transform: translateY(0) scale(0.5) rotate(0deg); }
+  30%  { opacity: 1; transform: translateY(-30px) scale(1.2) rotate(15deg); }
+  100% { opacity: 0; transform: translateY(-100px) scale(0.3) rotate(-25deg); }
+}
+
+/* ---------- confirm placeholder ---------- */
+.confirm-placeholder {
+  width: 100%;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- info card (page 5) ---------- */
+.info-card {
+  width: 100%;
+  display: flex; flex-direction: column;
+  gap: 12px;
+}
+.info-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px;
+  border: 4px solid #000;
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 #FF4FA3;
+  font-size: 28px; font-weight: 700;
+}
+
+/* ---------- countdown ---------- */
+.cd-box {
+  display: flex; align-items: center; gap: 12px;
+  padding: 24px 20px;
+  background: #FF4FA3;
+  border: 5px solid #000;
+  border-radius: 24px;
+  box-shadow: 6px 6px 0 #FF4FA3;
+  width: 100%;
+  justify-content: center;
+}
+.cd-unit {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 4px;
+  padding: 10px 8px;
+  background: #FFF;
+  border: 3px solid #000;
+  border-radius: 14px;
+  flex: 1; min-width: 60px;
+}
+.cd-num { font-size: 44px; font-weight: 900; color: #000; line-height: 1; }
+.cd-label { font-size: 22px; font-weight: 500; color: #000; }
+
+/* ---------- decorative dots ---------- */
+.deco-dot {
+  position: absolute; border-radius: 50%;
+  border: 3px solid #000;
+  pointer-events: none;
+}
+
+/* ---------- animations ---------- */
+@keyframes avatarShake {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  15% { transform: rotate(-8deg) scale(1.05); }
+  30% { transform: rotate(6deg) scale(1.08); }
+  45% { transform: rotate(-5deg) scale(1.05); }
+  60% { transform: rotate(3deg) scale(1.03); }
+  75% { transform: rotate(-2deg) scale(1.01); }
+  90% { transform: rotate(1deg) scale(1.005); }
+}
+
+/* ---------- confetti ---------- */
+.confetti-piece {
+  position: absolute; pointer-events: none; z-index: 20;
+  font-size: 28px;
+  animation: confettiFall var(--fall-dur) var(--fall-delay) ease-in forwards;
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(-60px) rotate(0deg) scale(0.5); opacity: 1; }
+  40%  { opacity: 1; }
+  100% { transform: translateY(960px) rotate(var(--spin)) scale(1.2); opacity: 0; }
+}
+
+/* ---------- responsive scale ---------- */
+@media (max-width: 1320px) { #viewport { transform: scale(0.48); } }
+@media (max-width: 960px)  { #viewport { transform: scale(0.35); } }
+</style>
+</head>
+<body>
+
+<!-- background floating cute icons -->
+<div id="bgIcons"></div>
+
+<div id="viewport">
+
+  <!-- ==================== PAGE 1: 封面邀请函 ==================== -->
+  <div class="card active" id="page1">
+    <div class="left-panel">
+      <div class="avatar-wrap" id="avatar1">
+        <img id="avatarImg1" src="cat_avatar.jpg" alt="头像" onerror="this.parentElement.style.background='#FFE4C4'">
+      </div>
+      <div class="avatar-name">小马同学</div>
+    </div>
+    <div class="wave-divider"><div class="wave-accent"></div></div>
+    <div class="right-panel page1-panel">
+      <div class="main-title">叮咚！</div>
+      <div class="subtitle">你收到一封约会邀请函</div>
+      <div class="desc">要不要打开看看？</div>
+      <div style="height:100px"></div>
+      <div class="dashed-lace"></div>
+      <div class="btn-row" style="margin-top:6px;justify-content:flex-start;padding-left:0">
+        <button class="btn btn-open btn-primary" id="openBtn" onclick="goPage(2)">✨ 打开</button>
+        <button class="btn btn-white btn-secondary reject-btn" id="rejectBtn" onclick="fleeReject()">拒收</button>
+      </div>
+      <div class="deco-dot" style="width:32px;height:32px;background:#FFE94F;top:30px;right:40px"></div>
+      <div class="deco-dot" style="width:20px;height:20px;background:#B5F2C0;top:70px;right:70px"></div>
+      <div class="deco-dot" style="width:28px;height:28px;background:#FF4FA3;bottom:40px;right:50px"></div>
+    </div>
+  </div>
+
+  <!-- ==================== PAGE 2: 选时间 ==================== -->
+  <div class="card" id="page2">
+    <div class="left-panel">
+      <div class="avatar-wrap" id="avatar2">
+        <img id="avatarImg2" src="cat_avatar.jpg" alt="头像" onerror="this.parentElement.style.background='#FFE4C4'">
+      </div>
+      <div class="avatar-name">小马同学</div>
+    </div>
+    <div class="wave-divider"><div class="wave-accent"></div></div>
+    <div class="right-panel">
+      <div class="main-title-mid">选一个约会时间</div>
+      <div class="desc">请选择年月日时间</div>
+      <div style="height:8px"></div>
+      <div class="dropdown-group">
+        <div class="dropdown" onclick="toggleDropdown(this)"><span class="dd-val">2026</span><span class="dropdown-arrow">▾</span><div class="dropdown-options" id="yearOpts"></div></div>
+        <div class="dropdown" onclick="toggleDropdown(this)"><span class="dd-val">07月</span><span class="dropdown-arrow">▾</span><div class="dropdown-options" id="monthOpts"></div></div>
+        <div class="dropdown" onclick="toggleDropdown(this)"><span class="dd-val">20日</span><span class="dropdown-arrow">▾</span><div class="dropdown-options" id="dayOpts"></div></div>
+        <div class="dropdown" onclick="toggleDropdown(this)"><span class="dd-val">18:00</span><span class="dropdown-arrow">▾</span><div class="dropdown-options" id="timeOpts"></div></div>
+      </div>
+      <div style="height:210px"></div>
+      <div class="dashed-lace"></div>
+      <button class="btn btn-pink btn-full btn-confirm" style="margin-top:8px" onclick="goPage(3)">✓ 确认这个时间</button>
+      <div class="deco-dot" style="width:32px;height:32px;background:#FFE94F;top:30px;left:30px"></div>
+      <div class="deco-dot" style="width:18px;height:18px;background:#FF4FA3;bottom:60px;left:30px"></div>
+      <div class="deco-dot" style="width:26px;height:26px;background:#A8D8FF;bottom:50px;right:50px"></div>
+    </div>
+  </div>
+
+  <!-- ==================== PAGE 3: 吃什么 ==================== -->
+  <div class="card" id="page3">
+    <div class="left-panel">
+      <div class="avatar-bubble" id="bubble3" style="left:50%;top:8%;transform:translate(-50%,0)"></div>
+      <div class="avatar-wrap" id="avatar3">
+        <img id="avatarImg3" src="cat_avatar.jpg" alt="头像" onerror="this.parentElement.style.background='#FFE4C4'">
+      </div>
+      <div class="avatar-name">小马同学</div>
+    </div>
+    <div class="wave-divider"><div class="wave-accent"></div></div>
+    <div class="right-panel">
+      <div class="main-title-mid">我们吃点什么</div>
+      <div class="desc">挑一个今天的约会氛围</div>
+      <div class="option-grid">
+        <div class="option-row">
+          <div class="opt-card bg-pink" onclick="selectFood(this,'火锅','🍲')"><span class="opt-icon">🍲</span><span class="opt-label">火锅</span></div>
+          <div class="opt-card bg-peach" onclick="selectFood(this,'烤肉','🥩')"><span class="opt-icon">🥩</span><span class="opt-label">烤肉</span></div>
+          <div class="opt-card bg-gold" onclick="selectFood(this,'烧烤','🍢')"><span class="opt-icon">🍢</span><span class="opt-label">烧烤</span></div>
+        </div>
+        <div class="option-row">
+          <div class="opt-card bg-mint" onclick="selectFood(this,'炒菜','🥘')"><span class="opt-icon">🥘</span><span class="opt-label">炒菜</span></div>
+          <div class="opt-card bg-rose" onclick="selectFood(this,'披萨','🍕')"><span class="opt-icon">🍕</span><span class="opt-label">披萨</span></div>
+          <div class="opt-card bg-blue" onclick="selectFood(this,'寿司','🍣')"><span class="opt-icon">🍣</span><span class="opt-label">寿司</span></div>
+        </div>
+      </div>
+      <div style="height:10px"></div>
+      <div class="dashed-lace"></div>
+      <div class="confirm-placeholder">
+        <button class="btn btn-pink btn-full btn-confirm" id="confirmBtn3" style="display:none" onclick="goPage(4)">🍲 想吃火锅了</button>
+      </div>
+      <div class="deco-dot" style="width:32px;height:32px;background:#FFE94F;top:30px;left:30px"></div>
+      <div class="deco-dot" style="width:26px;height:26px;background:#FF4FA3;bottom:50px;right:50px"></div>
+    </div>
+  </div>
+
+  <!-- ==================== PAGE 4: 饭后 ==================== -->
+  <div class="card" id="page4">
+    <div class="left-panel">
+      <div class="avatar-bubble" id="bubble4" style="left:50%;top:8%;transform:translate(-50%,0)"></div>
+      <div class="avatar-wrap" id="avatar4">
+        <img id="avatarImg4" src="cat_avatar.jpg" alt="头像" onerror="this.parentElement.style.background='#FFE4C4'">
+      </div>
+      <div class="avatar-name">小马同学</div>
+    </div>
+    <div class="wave-divider"><div class="wave-accent"></div></div>
+    <div class="right-panel">
+      <div class="main-title-mid">吃完去做什么</div>
+      <div class="desc">挑一个饭后的小计划</div>
+      <div class="option-grid">
+        <div class="option-row">
+          <div class="opt-card bg-lime" onclick="selectActivity(this,'散步','🚶')"><span class="opt-icon">🚶</span><span class="opt-label">散步</span></div>
+          <div class="opt-card bg-lav" onclick="selectActivity(this,'打游戏','🎮')"><span class="opt-icon">🎮</span><span class="opt-label">打游戏</span></div>
+        </div>
+        <div class="option-row">
+          <div class="opt-card bg-coral" onclick="selectActivity(this,'看电影','🎬')"><span class="opt-icon">🎬</span><span class="opt-label">看电影</span></div>
+          <div class="opt-card bg-amber" onclick="selectActivity(this,'喝酒','🍷')"><span class="opt-icon">🍷</span><span class="opt-label">喝酒</span></div>
+        </div>
+      </div>
+      <div style="height:10px"></div>
+      <div class="dashed-lace"></div>
+      <div class="confirm-placeholder">
+        <button class="btn btn-pink btn-full btn-confirm" id="confirmBtn4" style="display:none" onclick="goPage(5)">🚶 咱们去散步</button>
+      </div>
+      <div class="deco-dot" style="width:32px;height:32px;background:#FFE94F;top:30px;left:30px"></div>
+      <div class="deco-dot" style="width:26px;height:26px;background:#FF4FA3;bottom:50px;right:50px"></div>
+    </div>
+  </div>
+
+  <!-- ==================== PAGE 5: 计划锁定 ==================== -->
+  <div class="card" id="page5">
+    <div class="left-panel">
+      <div class="avatar-wrap" id="avatar5">
+        <img id="avatarImg5" src="cat_avatar.jpg" alt="头像" onerror="this.parentElement.style.background='#FFE4C4'">
+      </div>
+      <div class="avatar-name">小马同学</div>
+    </div>
+    <div class="wave-divider"><div class="wave-accent"></div></div>
+    <div class="right-panel">
+      <div class="main-title" style="font-size:56px">约会计划已锁定</div>
+      <div class="emoji-big">🎉</div>
+      <div class="info-card">
+        <div class="info-row" style="background:#FFE94F"><span class="label">时间</span><span class="value" id="finalTime">2026.07.20 18:00</span></div>
+        <div class="info-row" style="background:#FFB3D9"><span class="label">美食</span><span class="value" id="finalFood">火锅</span></div>
+        <div class="info-row" style="background:#B5F2C0"><span class="label">饭后</span><span class="value" id="finalActivity">散步</span></div>
+      </div>
+      <div style="min-height:10px"></div>
+      <div class="desc" style="font-weight:500">距离约会还有</div>
+      <div class="cd-box" id="countdownBox">
+        <div class="cd-unit"><span class="cd-num" id="cdDays">06</span><span class="cd-label">天</span></div>
+        <div class="cd-unit"><span class="cd-num" id="cdHours">22</span><span class="cd-label">时</span></div>
+        <div class="cd-unit"><span class="cd-num" id="cdMins">47</span><span class="cd-label">分</span></div>
+        <div class="cd-unit"><span class="cd-num" id="cdSecs">33</span><span class="cd-label">秒</span></div>
+      </div>
+      <div class="deco-dot" style="width:40px;height:40px;background:#FF4FA3;top:30px;right:30px"></div>
+      <div class="deco-dot" style="width:28px;height:28px;background:#FFE94F;top:50px;right:80px"></div>
+      <div class="deco-dot" style="width:22px;height:22px;background:#B5F2C0;bottom:40px;right:60px"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ==================== BACKGROUND FLOATING ICONS ====================
+(function initBgIcons() {
+  const icons = ['💕','💖','💗','💝','🩷','✨','⭐','🌟','💫','🫧','🌸','💐','🎀','🦋','🍬','🧁','💎','🪷','💓','💘'];
+  const container = document.getElementById('bgIcons');
+  for (let i = 0; i < 30; i++) {
+    const el = document.createElement('span');
+    el.className = 'bg-float';
+    el.textContent = icons[Math.floor(Math.random() * icons.length)];
+    el.style.left = Math.random() * 100 + '%';
+    el.style.setProperty('--dur', (8 + Math.random() * 14) + 's');
+    el.style.setProperty('--delay', (-Math.random() * 15) + 's');
+    el.style.setProperty('--drift', ((Math.random() - 0.5) * 200) + 'px');
+    el.style.setProperty('--spin', ((Math.random() - 0.5) * 720) + 'deg');
+    el.style.fontSize = (20 + Math.random() * 28) + 'px';
+    container.appendChild(el);
+  }
+})();
+
+// ==================== GLOBAL STATE ====================
+let currentPage = 1;
+let selectedFood = null, selectedActivity = null;
+let bubbleIdx3 = 0;
+let bubbleIdx4 = 0;
+
+// ==================== PAGE NAVIGATION ====================
+function goPage(n) {
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+  const page = document.getElementById('page' + n);
+  if (page) {
+    page.classList.add('active');
+    currentPage = n;
+    if (n === 5) { updateFinalSummary(); startCountdown(); spawnConfetti(); }
+    scaleViewport();
+  }
+}
+
+// ==================== REJECT BUTTON - CONSTRAINED FLEE (stays inside card) ====================
+const rejectTexts = [
+  { text: '点不到我吧', emoji: '😜' },
+  { text: '不要哇', emoji: '🥺' },
+  { text: '再考虑一下嘛', emoji: '🥹' },
+  { text: '快跑', emoji: '💨' },
+  { text: '别点我', emoji: '🙅' },
+  { text: '抓不住我', emoji: '🏃' },
+  { text: '不要不要', emoji: '❌' },
+  { text: '让我跑', emoji: '😝' },
+];
+
+function fleeReject() {
+  const btn = document.getElementById('rejectBtn');
+  const openBtn = document.getElementById('openBtn');
+  if (!btn || !openBtn) return;
+  const panel = btn.closest('.right-panel');
+  const bRect = btn.getBoundingClientRect();
+  const oRect = openBtn.getBoundingClientRect();
+  const pRect = panel.getBoundingClientRect();
+  const dashedLace = panel.querySelector('.dashed-lace');
+  const dlRect = dashedLace ? dashedLace.getBoundingClientRect() : null;
+
+  // padding from card border
+  const borderPad = 28;
+  const maxX = pRect.width - bRect.width - borderPad;
+  const maxY = pRect.height - bRect.height - borderPad;
+
+  const relX = bRect.left - pRect.left;
+  const relY = bRect.top - pRect.top;
+
+  // upper boundary: must stay below dashed-lace
+  const minY = dlRect ? dlRect.bottom - pRect.top + 10 : borderPad;
+
+  // open button exclusion zone (generous buffer)
+  const openL = oRect.left - pRect.left - 36;
+  const openR = oRect.right - pRect.left + 36;
+  const openT = oRect.top - pRect.top - 20;
+  const openB = oRect.bottom - pRect.top + 20;
+
+  const rangeX = Math.min(500, (maxX - borderPad) * 0.95);
+  const rangeY = Math.min(380, (maxY - minY) * 0.95);
+
+  let newX, newY;
+  for (let i = 0; i < 25; i++) {
+    // bias toward right & down — away from open button
+    newX = Math.random() * rangeX;
+    newY = Math.random() * rangeY;
+    newX = Math.max(-relX + borderPad, Math.min(maxX - relX, newX));
+    newY = Math.max(minY - relY, Math.min(maxY - relY, newY));
+
+    const bx = relX + newX;
+    const by = relY + newY;
+    // skip if overlapping open button
+    if (bx + bRect.width > openL && bx < openR && by + bRect.height > openT && by < openB) continue;
+    break;
+  }
+
+  btn.style.transform = 'translate(' + Math.round(newX) + 'px, ' + Math.round(newY) + 'px)';
+
+  const pick = rejectTexts[Math.floor(Math.random() * rejectTexts.length)];
+  btn.innerHTML = pick.emoji + ' ' + pick.text;
+}
+
+const rejectBtn = document.getElementById('rejectBtn');
+if (rejectBtn) {
+  rejectBtn.addEventListener('mouseenter', fleeReject);
+}
+
+// ==================== DROPDOWNS ====================
+function toggleDropdown(el) {
+  document.querySelectorAll('.dropdown-options.show').forEach(d => {
+    if (d !== el.querySelector('.dropdown-options')) d.classList.remove('show');
+  });
+  const opts = el.querySelector('.dropdown-options');
+  opts.classList.toggle('show');
+  if (opts.classList.contains('show') && opts.children.length === 0) {
+    populateDropdown(el);
+  }
+}
+
+function populateDropdown(dd) {
+  const valSpan = dd.querySelector('.dd-val');
+  const optsDiv = dd.querySelector('.dropdown-options');
+  const currentVal = valSpan.textContent;
+  let options = [];
+  const id = optsDiv.id;
+  if (id === 'yearOpts') { for (let y = 2026; y <= 2030; y++) options.push(y + ''); }
+  else if (id === 'monthOpts') { for (let m = 1; m <= 12; m++) options.push(m + '月'); }
+  else if (id === 'dayOpts') { for (let d = 1; d <= 31; d++) options.push(d + '日'); }
+  else if (id === 'timeOpts') {
+    options = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+  }
+  options.forEach(opt => {
+    const div = document.createElement('div');
+    div.className = 'dropdown-option';
+    div.textContent = opt;
+    if (opt === currentVal) div.style.background = '#FFF0F5';
+    div.addEventListener('click', (e) => { e.stopPropagation(); valSpan.textContent = opt; optsDiv.classList.remove('show'); });
+    optsDiv.appendChild(div);
+  });
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dropdown')) {
+    document.querySelectorAll('.dropdown-options.show').forEach(d => d.classList.remove('show'));
+  }
+});
+
+// ==================== FLOATING HEARTS ====================
+function spawnHearts(el) {
+  const hearts = ['💕','💖','💗','💝','🩷','💓','💘','🫶'];
+  for (let i = 0; i < 4; i++) {
+    const heart = document.createElement('span');
+    heart.className = 'float-heart';
+    heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+    heart.style.left = (20 + Math.random() * 60) + '%';
+    heart.style.top = (10 + Math.random() * 50) + '%';
+    heart.style.animationDuration = (0.8 + Math.random() * 0.8) + 's';
+    heart.style.animationDelay = (Math.random() * 0.3) + 's';
+    el.appendChild(heart);
+    setTimeout(() => heart.remove(), 1500);
+  }
+}
+
+// ==================== AVATAR BUBBLE - from inside avatar, tight, diagonal/upward ====================
+let bubbleTimers = {};
+function showAvatarBubble(bubbleId, avatarId, text) {
+  const bubble = document.getElementById(bubbleId);
+  const avatar = document.getElementById(avatarId);
+  if (!bubble || !avatar) return;
+
+  // cancel previous timers to prevent overlap
+  if (bubbleTimers[bubbleId]) {
+    bubbleTimers[bubbleId].forEach(clearTimeout);
+  }
+  bubbleTimers[bubbleId] = [];
+
+  const parent = avatar.parentElement;
+  const aRect = avatar.getBoundingClientRect();
+  const pRect = parent.getBoundingClientRect();
+
+  const baseLeft = aRect.left - pRect.left;
+  const baseTop = aRect.top - pRect.top;
+  const offsetX = (Math.random() - 0.5) * 80;
+  const offsetY = Math.random() * 30;
+
+  // disable transition for instant positioning
+  bubble.style.transition = 'none';
+  bubble.classList.remove('show');
+  bubble.style.left = (baseLeft + avatar.offsetWidth/2 + offsetX) + 'px';
+  bubble.style.top = (baseTop + offsetY) + 'px';
+  bubble.style.transform = 'translate(-50%, 0) scale(0.4)';
+  bubble.style.opacity = '0';
+  bubble.textContent = text;
+  bubble.offsetHeight; // force reflow
+
+  // re-enable transition, then animate in
+  bubble.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+  bubble.classList.add('show');
+  bubble.style.transform = 'translate(-50%, -14px) scale(1)';
+  bubble.style.opacity = '1';
+
+  // drift
+  const t1 = setTimeout(() => {
+    const driftX = (Math.random() - 0.5) * 20;
+    const driftY = -(6 + Math.random() * 12);
+    bubble.style.transform = 'translate(calc(-50% + ' + driftX + 'px), ' + driftY + 'px) scale(0.9)';
+    bubble.style.opacity = '0.75';
+  }, 600);
+  bubbleTimers[bubbleId].push(t1);
+
+  // fade out
+  const t2 = setTimeout(() => {
+    bubble.classList.remove('show');
+    bubble.style.opacity = '0';
+    bubble.style.transform = 'translate(-50%, -30px) scale(0.25)';
+  }, 1800);
+  bubbleTimers[bubbleId].push(t2);
+}
+
+// ==================== CONFETTI (page 5 celebration) ====================
+function spawnConfetti() {
+  const page = document.getElementById('page5');
+  if (!page) return;
+  const emojis = ['🎉','✨','🌟','💫','🎊','💐','🌸','💖','🩷','🎀','💝','🫧','⭐','💗'];
+  for (let i = 0; i < 40; i++) {
+    const piece = document.createElement('span');
+    piece.className = 'confetti-piece';
+    piece.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.setProperty('--fall-dur', (2 + Math.random() * 3) + 's');
+    piece.style.setProperty('--fall-delay', (Math.random() * 1.5) + 's');
+    piece.style.setProperty('--spin', ((Math.random() - 0.5) * 720) + 'deg');
+    piece.style.fontSize = (20 + Math.random() * 24) + 'px';
+    page.appendChild(piece);
+    setTimeout(() => piece.remove(), 5000);
+  }
+}
+
+// ==================== FOOD SELECTION (PAGE 3) ====================
+function selectFood(card, name, icon) {
+  document.querySelectorAll('#page3 .opt-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  selectedFood = { name, icon };
+  spawnHearts(card);
+
+  const phrases = [
+    '✨ 好呀好呀',
+    '🤤 我也想吃这个',
+    '😋 这个好吃',
+    '💖 我也爱吃'
+  ];
+  const phrase = phrases[bubbleIdx3];
+  bubbleIdx3 = (bubbleIdx3 + 1) % phrases.length;
+
+  const av = document.getElementById('avatar3');
+  av.classList.remove('shake'); void av.offsetWidth; av.classList.add('shake');
+
+  showAvatarBubble('bubble3', 'avatar3', phrase);
+
+  const btn = document.getElementById('confirmBtn3');
+  btn.innerHTML = icon + ' 想吃' + name + '了';
+  btn.style.display = 'flex';
+}
+
+// ==================== ACTIVITY SELECTION (PAGE 4) ====================
+function selectActivity(card, name, icon) {
+  document.querySelectorAll('#page4 .opt-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  selectedActivity = { name, icon };
+  spawnHearts(card);
+
+  const phrases = [
+    '💖 这个我喜欢',
+    '✨ 好呀好呀',
+    '🚀 走起走起'
+  ];
+  const phrase = phrases[bubbleIdx4];
+  bubbleIdx4 = (bubbleIdx4 + 1) % phrases.length;
+
+  const av = document.getElementById('avatar4');
+  av.classList.remove('shake'); void av.offsetWidth; av.classList.add('shake');
+
+  showAvatarBubble('bubble4', 'avatar4', phrase);
+
+  const btn = document.getElementById('confirmBtn4');
+  btn.innerHTML = icon + ' 咱们去' + name;
+  btn.style.display = 'flex';
+}
+
+// ==================== FINAL SUMMARY ====================
+function updateFinalSummary() {
+  const foodName = selectedFood ? selectedFood.name : '火锅';
+  const activityName = selectedActivity ? selectedActivity.name : '散步';
+  document.getElementById('finalFood').textContent = foodName;
+  document.getElementById('finalActivity').textContent = activityName;
+  const spans = document.querySelectorAll('#page2 .dd-val');
+  if (spans.length >= 4) {
+    document.getElementById('finalTime').textContent =
+      spans[0].textContent + '.' + spans[1].textContent.replace('月','') + '.' + spans[2].textContent.replace('日','') + ' ' + spans[3].textContent;
+  }
+}
+
+// ==================== COUNTDOWN ====================
+let countdownInterval = null;
+function startCountdown() {
+  if (countdownInterval) clearInterval(countdownInterval);
+  const spans = document.querySelectorAll('#page2 .dd-val');
+  let y = 2026, mo = 7, d = 20, h = 18, mi = 0;
+  if (spans.length >= 4) {
+    y = parseInt(spans[0].textContent); mo = parseInt(spans[1].textContent); d = parseInt(spans[2].textContent);
+    const t = spans[3].textContent.split(':'); h = parseInt(t[0]); mi = parseInt(t[1]);
+  }
+  const target = new Date(y, mo - 1, d, h, mi, 0);
+  function tick() {
+    let diff = target - new Date(); if (diff < 0) diff = 0;
+    document.getElementById('cdDays').textContent = String(Math.floor(diff/86400000)).padStart(2,'0');
+    document.getElementById('cdHours').textContent = String(Math.floor((diff%86400000)/3600000)).padStart(2,'0');
+    document.getElementById('cdMins').textContent = String(Math.floor((diff%3600000)/60000)).padStart(2,'0');
+    document.getElementById('cdSecs').textContent = String(Math.floor((diff%60000)/1000)).padStart(2,'0');
+  }
+  tick(); countdownInterval = setInterval(tick, 1000);
+}
+
+// ==================== RESPONSIVE SCALING ====================
+function scaleViewport() {
+  const vp = document.getElementById('viewport');
+  const s = Math.min(window.innerWidth/1280, window.innerHeight/900, 1) * 0.92;
+  vp.style.transform = 'scale(' + s + ')';
+  vp.style.width = '1280px'; vp.style.height = '900px';
+}
+window.addEventListener('resize', scaleViewport);
+scaleViewport();
+
+// ==================== KEYBOARD NAVIGATION ====================
+document.addEventListener('keydown', (e) => {
+  if ((e.key === 'ArrowRight' || e.key === 'ArrowDown') && currentPage < 5) goPage(currentPage + 1);
+  if ((e.key === 'ArrowLeft' || e.key === 'ArrowUp') && currentPage > 1) goPage(currentPage - 1);
+});
+</script>
+</body>
+</html>
